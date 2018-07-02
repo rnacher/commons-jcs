@@ -18,9 +18,10 @@
  */
 package org.apache.commons.jcs.jcache.cdi;
 
+import java.lang.annotation.Annotation;
+
 import javax.cache.Cache;
 import javax.cache.CacheManager;
-import javax.cache.Caching;
 import javax.cache.annotation.CacheMethodDetails;
 import javax.cache.annotation.CacheResolver;
 import javax.cache.annotation.CacheResolverFactory;
@@ -28,64 +29,49 @@ import javax.cache.annotation.CacheResult;
 import javax.cache.configuration.Factory;
 import javax.cache.configuration.MutableConfiguration;
 import javax.cache.expiry.ExpiryPolicy;
-import javax.cache.spi.CachingProvider;
-import javax.inject.Inject;
 
-import java.lang.annotation.Annotation;
+public class CacheResolverFactoryImpl implements CacheResolverFactory {
+	private CacheManager cacheManager;
+	private ExpiryPolicyFactoryResolver expirationFactory;
 
-public class CacheResolverFactoryImpl implements CacheResolverFactory
-{
-	private final CachingProvider provider;
-    private final CacheManager cacheManager;
-    private final ExpiryPolicyFactoryResolver expirationFactory;
+	public CacheResolverFactoryImpl(
+			CacheManager cacheManager, ExpiryPolicyFactoryResolver expirationFactory
+			) {
+		this.cacheManager = cacheManager;
+		this.expirationFactory = expirationFactory;
+	}
 
-    @Inject
-    public CacheResolverFactoryImpl(CachingProvider provider,CacheManager cacheManager,
-    	      ExpiryPolicyFactoryResolver expirationFactory) {
-    	this.provider = provider;
-    	this.cacheManager = cacheManager;
-    	this.expirationFactory = expirationFactory;
-    }
+	@Override
+	public CacheResolver getCacheResolver(CacheMethodDetails<? extends Annotation> cacheMethodDetails) {
+		return findCacheResolver(cacheMethodDetails.getCacheName());
+	}
 
-    @Override
-    public CacheResolver getCacheResolver(CacheMethodDetails<? extends Annotation> cacheMethodDetails)
-    {
-        return findCacheResolver(cacheMethodDetails.getCacheName());
-    }
+	@Override
+	public CacheResolver getExceptionCacheResolver(final CacheMethodDetails<CacheResult> cacheMethodDetails) {
+		final String exceptionCacheName = cacheMethodDetails.getCacheAnnotation().exceptionCacheName();
+		if (exceptionCacheName == null || exceptionCacheName.isEmpty()) {
+			throw new IllegalArgumentException("CacheResult.exceptionCacheName() not specified");
+		}
+		return findCacheResolver(exceptionCacheName);
+	}
 
-    @Override
-    public CacheResolver getExceptionCacheResolver(final CacheMethodDetails<CacheResult> cacheMethodDetails)
-    {
-        final String exceptionCacheName = cacheMethodDetails.getCacheAnnotation().exceptionCacheName();
-        if (exceptionCacheName == null || exceptionCacheName.isEmpty())
-        {
-            throw new IllegalArgumentException("CacheResult.exceptionCacheName() not specified");
-        }
-        return findCacheResolver(exceptionCacheName);
-    }
+	private CacheResolver findCacheResolver(String exceptionCacheName) {
+		Cache<?, ?> cache = cacheManager.getCache(exceptionCacheName);
+		if (cache == null) {
+			cache = createCache(exceptionCacheName);
+		}
+		return new CacheResolverImpl(cache);
+	}
 
-    private CacheResolver findCacheResolver(String exceptionCacheName)
-    {
-        Cache<?, ?> cache = cacheManager.getCache(exceptionCacheName);
-        if (cache == null)
-        {
-            cache = createCache(exceptionCacheName);
-        }
-        return new CacheResolverImpl(cache);
-    }
+	private Cache<?, ?> createCache(final String exceptionCacheName) {
+		Factory<? extends ExpiryPolicy> factory = expirationFactory.get(exceptionCacheName);
 
-    private Cache<?, ?> createCache(final String exceptionCacheName)
-    {
-    	Factory<? extends ExpiryPolicy> factory = expirationFactory.get(exceptionCacheName);
+		cacheManager.createCache(exceptionCacheName,
+				new MutableConfiguration<Object, Object>().setStoreByValue(false).setExpiryPolicyFactory(factory));
+		return cacheManager.getCache(exceptionCacheName);
+	}
 
-	    cacheManager.createCache(exceptionCacheName, new MutableConfiguration<Object, Object>()
-	        .setStoreByValue(false).setExpiryPolicyFactory(factory));
-	    return cacheManager.getCache(exceptionCacheName);
-    }
-
-    public void release()
-    {
-        cacheManager.close();
-        provider.close();
-    }
+	public void release() {
+		cacheManager.close();
+	}
 }
