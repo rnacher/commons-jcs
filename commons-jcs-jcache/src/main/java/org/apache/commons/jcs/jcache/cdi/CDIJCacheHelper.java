@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
 
 import javax.annotation.PreDestroy;
+import javax.cache.CacheManager;
 import javax.cache.annotation.CacheDefaults;
 import javax.cache.annotation.CacheKey;
 import javax.cache.annotation.CacheKeyGenerator;
@@ -42,6 +43,7 @@ import javax.cache.annotation.CacheRemoveAll;
 import javax.cache.annotation.CacheResolverFactory;
 import javax.cache.annotation.CacheResult;
 import javax.cache.annotation.CacheValue;
+import javax.cache.spi.CachingProvider;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.context.spi.CreationalContext;
 import javax.enterprise.inject.spi.Bean;
@@ -55,7 +57,6 @@ public class CDIJCacheHelper
     private static final Logger LOGGER = Logger.getLogger(CDIJCacheHelper.class.getName());
     private static final boolean CLOSE_CACHE = !Boolean.getBoolean("org.apache.commons.jcs.jcache.cdi.skip-close");
 
-    private volatile CacheResolverFactoryImpl defaultCacheResolverFactory = null; // lazy to not create any cache if not needed
     private final CacheKeyGeneratorImpl defaultCacheKeyGenerator = new CacheKeyGeneratorImpl();
 
     private final Collection<CreationalContext<?>> toRelease = new ArrayList<CreationalContext<?>>();
@@ -63,7 +64,10 @@ public class CDIJCacheHelper
 
     @Inject
     private BeanManager beanManager;
-
+    
+    @Inject
+    private CacheResolverFactoryImpl defaultCacheResolverFactory;
+    
     @PreDestroy
     private void release() {
         if (CLOSE_CACHE && defaultCacheResolverFactory != null)
@@ -386,15 +390,6 @@ public class CDIJCacheHelper
 
     private CacheResolverFactoryImpl defaultCacheResolverFactory()
     {
-        if (defaultCacheResolverFactory != null) {
-            return defaultCacheResolverFactory;
-        }
-        synchronized (this) {
-            if (defaultCacheResolverFactory != null) {
-                return defaultCacheResolverFactory;
-            }
-            defaultCacheResolverFactory = new CacheResolverFactoryImpl();
-        }
         return defaultCacheResolverFactory;
     }
 

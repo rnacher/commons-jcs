@@ -25,19 +25,26 @@ import javax.cache.annotation.CacheMethodDetails;
 import javax.cache.annotation.CacheResolver;
 import javax.cache.annotation.CacheResolverFactory;
 import javax.cache.annotation.CacheResult;
+import javax.cache.configuration.Factory;
 import javax.cache.configuration.MutableConfiguration;
+import javax.cache.expiry.ExpiryPolicy;
 import javax.cache.spi.CachingProvider;
+import javax.inject.Inject;
+
 import java.lang.annotation.Annotation;
 
 public class CacheResolverFactoryImpl implements CacheResolverFactory
 {
+	private final CachingProvider provider;
     private final CacheManager cacheManager;
-    private final CachingProvider provider;
+    private final ExpiryPolicyFactoryResolver expirationFactory;
 
-    public CacheResolverFactoryImpl()
-    {
-        provider = Caching.getCachingProvider();
-        cacheManager = provider.getCacheManager(provider.getDefaultURI(), provider.getDefaultClassLoader());
+    @Inject
+    public CacheResolverFactoryImpl(CachingProvider provider,CacheManager cacheManager,
+    	      ExpiryPolicyFactoryResolver expirationFactory) {
+    	this.provider = provider;
+    	this.cacheManager = cacheManager;
+    	this.expirationFactory = expirationFactory;
     }
 
     @Override
@@ -69,8 +76,11 @@ public class CacheResolverFactoryImpl implements CacheResolverFactory
 
     private Cache<?, ?> createCache(final String exceptionCacheName)
     {
-        cacheManager.createCache(exceptionCacheName, new MutableConfiguration<Object, Object>().setStoreByValue(false));
-        return cacheManager.getCache(exceptionCacheName);
+    	Factory<? extends ExpiryPolicy> factory = expirationFactory.get(exceptionCacheName);
+
+	    cacheManager.createCache(exceptionCacheName, new MutableConfiguration<Object, Object>()
+	        .setStoreByValue(false).setExpiryPolicyFactory(factory));
+	    return cacheManager.getCache(exceptionCacheName);
     }
 
     public void release()
