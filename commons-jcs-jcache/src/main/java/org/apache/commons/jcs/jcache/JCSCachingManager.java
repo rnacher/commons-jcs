@@ -18,6 +18,7 @@
  */
 package org.apache.commons.jcs.jcache;
 
+import static org.apache.commons.jcs.jcache.JCSCachingProvider.JCS_URI_PREFFIX;
 import org.apache.commons.jcs.engine.control.CompositeCacheManager;
 import org.apache.commons.jcs.jcache.lang.Subsitutor;
 import org.apache.commons.jcs.jcache.proxy.ClassLoaderAwareCache;
@@ -100,10 +101,10 @@ public class JCSCachingManager implements CacheManager
     private Properties readConfig(final URI uri, final ClassLoader loader, final Properties properties) {
         final Properties props = new Properties();
         try {
-            if (JCSCachingProvider.DEFAULT_URI.toString().equals(uri.toString()) || uri.toURL().getProtocol().equals("jcs"))
+            if (JCSCachingProvider.DEFAULT_URI.toString().equals(uri.toString()) 
+                || uri.toString().startsWith(JCS_URI_PREFFIX))
             {
-
-                final Enumeration<URL> resources = loader.getResources(uri.getPath());
+                final Enumeration<URL> resources = loader.getResources(uri.toString().substring(JCS_URI_PREFFIX.length()));
                 if (!resources.hasMoreElements()) // default
                 {
                     props.load(new ByteArrayInputStream(DEFAULT_CONFIG.getBytes("UTF-8")));

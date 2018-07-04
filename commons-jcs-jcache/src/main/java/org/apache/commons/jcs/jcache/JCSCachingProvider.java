@@ -29,7 +29,8 @@ import java.util.concurrent.ConcurrentMap;
 
 public class JCSCachingProvider implements CachingProvider
 {
-    public static final URI DEFAULT_URI = URI.create("jcs://jcache.ccf");
+    public static final String JCS_URI_PREFFIX="jcs://";
+    public static final URI DEFAULT_URI = URI.create(JCS_URI_PREFFIX+"/jcache.ccf");
 
     private final ConcurrentMap<ClassLoader, ConcurrentMap<URI, CacheManager>> cacheManagersByLoader = new ConcurrentHashMap<ClassLoader, ConcurrentMap<URI, CacheManager>>();
 
